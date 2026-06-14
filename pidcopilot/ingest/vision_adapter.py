@@ -28,7 +28,9 @@ def load_vision(path: str, fixtures_dir: str | None = None) -> PidGraph:
             with open(frozen) as f:
                 return PidGraph.model_validate_json(f.read())
 
-    from ..llm.nemotron import vision_extract  # lazy; needs a running VL model
+    # Lazy: needs a running VL model. May raise (dead model / missing PyMuPDF);
+    # ingest/base.py wraps this adapter and surfaces an error graph instead.
+    from ..llm.nemotron import vision_extract
     raw = vision_extract(path, VLM_PROMPT)
     data = _coerce_json(raw)
     nodes = [Node(id=s["id"], type=_safe_type(s.get("type")), tag=s.get("tag"),
