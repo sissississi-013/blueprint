@@ -42,6 +42,7 @@ their tool (AutoCAD/SmartPlant/AVEVA) ──saves revision──▶ ingest(artif
 blueprint/
 ├── docs/                 # Shared context window for the build (read this first)
 │   ├── README.md                       # Index of the docs
+│   ├── build-plan.md                   # 🛠️ The actionable engineering build plan (start coding here)
 │   ├── demo-spec.md                    # ⭐ Governing spec: the P&ID Copilot (product shape)
 │   ├── build-spec.md                   # Deep impl reference: datasets, rule set, model serving
 │   ├── project.md                      # Earliest framing (superseded; kept for context)
@@ -70,11 +71,11 @@ blueprint/
 | NemoClaw Telegram delta alerts | ⬜ Not started |
 | `ingest()` vision adapter (PDF / image → graph) — invisibility proof | ⬜ Not started |
 
-See [`docs/demo-spec.md`](docs/demo-spec.md) for the governing plan, 5-min demo script, and hour-by-hour build plan.
+See [`docs/build-plan.md`](docs/build-plan.md) for the actionable engineering plan (data contracts, rule logic, configs, hour-by-hour) and [`docs/demo-spec.md`](docs/demo-spec.md) for product shape + the 5-min demo script.
 
 ## Getting started
 
-The build runs on the GB10 on-site. See [`docs/demo-spec.md`](docs/demo-spec.md) (Build plan) for staging and [`docs/build-spec.md`](docs/build-spec.md) for the NemoClaw install path, dataset downloads, and Nemotron serving commands. Code on a laptop is fine, but the final demo must run on the box.
+The build runs on the GB10 on-site. **[`docs/build-plan.md`](docs/build-plan.md) is the entry point for coding** — file structure, data contracts, the rule engine, and the pre-day USB checklist. See [`docs/build-spec.md`](docs/build-spec.md) for the NemoClaw install path, dataset downloads, and Nemotron serving commands. Code on a laptop is fine, but the final demo must run on the box.
 
 ## License
 
