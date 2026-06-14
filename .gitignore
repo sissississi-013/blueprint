@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.ipynb_checkpoints/
+
+# Node / OpenClaw
+node_modules/
+npm-debug.log*
+yarn-error.log*
+.pnpm-store/
+
+# Models, datasets, weights (keep large/local artifacts out of git)
+*.gguf
+*.safetensors
+*.bin
+*.pt
+*.pth
+*.onnx
+data/
+datasets/
+models/
+weights/
+checkpoints/
+*.graphml.bak
+
+# Env / secrets
+.env
+.env.*
+*.local
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
