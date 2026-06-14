@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import os
 
+from .. import config
 from ..graph.schema import PidGraph
 
 
@@ -24,7 +25,7 @@ def ingest(path: str, hint: str | None = None) -> PidGraph:
             return load_drawio(path)
         if ext in ("pdf", "png", "jpg", "jpeg"):
             from .vision_adapter import load_vision
-            return load_vision(path)
+            return load_vision(path, fixtures_dir=str(config.FIXTURES))
     except Exception as exc:  # never crash the loop
         return PidGraph(source="error", nodes=[], edges=[],
                         ).model_copy(update={"source": f"error:{ext}:{exc}"})
