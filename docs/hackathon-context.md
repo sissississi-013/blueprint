@@ -85,9 +85,28 @@ Plus, for everyone in the room:
 3. **Use case** — Submission must be a working AI agent. Business or corporate use cases preferred, but other uses allowed.
 4. **Teams** — Hard cap of 40 teams; each team gets exactly one box, no exceptions. Teams of 2–4 builders. Solo entries not accepted. Team formation partly managed by organizers. Each builder registers individually on BuilderBase.
 5. **Submission** — Submit through the BuilderBase submission portal. Required: a working demo running on the GB10.
-6. **Scoring** — Top 8 are selected from all submissions, then deliver short pitches. Rubric includes a bonus for smaller teams (e.g. a team of 2 gets more bonus points than a team of 5).
+6. **Scoring** — Top 8 are selected from all submissions, then deliver short pitches. Rubric includes a bonus for smaller teams (e.g. a team of 2 gets more bonus points than a team of 5). See the **Judging Rubric** section below for the official weighted criteria.
 7. **Hardware** — Each team is loaned one GB10 plus a monitor and keyboard/mouse for the day.
 8. **Prizes** — Awarded per team, not per builder. 1st: one GB10. 2nd & 3rd: one Dell laptop per team. Finalists 5–8: swag from the Dell rewards catalog per team.
+
+## Judging Rubric (Official Weights)
+
+**You're being judged on:**
+
+| Criterion | Weight | What it means |
+|---|---|---|
+| **Local-first + always-on** | **30%** | Runs fully on the GB10 with no cloud LLM calls. The agent acts on its own over time. |
+| **Business value** | **30%** | Solves a real corporate workflow with measurable impact. Something a company would actually use/pay for. |
+| **Demo + pitch** | **30%** | A clear 5-minute pitch showing what you built and why it matters. |
+| **Technical execution** | **10%** | Working end-to-end demo, correct use of the stack, doesn't break. |
+
+**Implications for the build:**
+- **90% of the score** is split evenly across *local-first/always-on*, *business value*, and *demo/pitch* — only **10%** is raw technical execution. Do not over-engineer at the expense of the narrative and the live demo.
+- "**The agent acts on its own over time**" is explicit — a request-response chatbot underperforms here. Build something **proactive/scheduled** (monitors, triggers, escalates).
+- "**No cloud LLM calls**" is a scored requirement, not just a rule. Any cloud API call directly costs the largest scoring bucket. Keep all inference on the GB10.
+- **Business value must be measurable** — lead with a concrete corporate workflow and a quantified ROI claim.
+- **Pitch is worth as much as the tech** (30% vs 10%). Budget real time to rehearse a tight 5-minute pitch.
+- Plus the **small-team scoring bonus** (rules #6) stacks on top.
 
 ## FAQ
 

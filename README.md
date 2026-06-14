@@ -6,6 +6,10 @@
 
 > Built for the **Dell × NVIDIA Hackathon — "Local AI on Dell Pro Max with GB10"** (San Francisco, June 14, 2026).
 
+**Required stack:** OpenClaw + NVIDIA NemoClaw + OpenShell, powered by NVIDIA Nemotron 3 — all running locally on the GB10.
+
+**Judged on:** Local-first + always-on (30%) · Business value (30%) · Demo + pitch (30%) · Technical execution (10%). The agent is designed to be **proactive** — it watches for new drawings and emits a punch-list on its own, not a request-response chatbot.
+
 ---
 
 ## Why

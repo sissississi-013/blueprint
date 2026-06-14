@@ -24,6 +24,38 @@ Build the **P&ID engineering-diagram validation agent**. It has strong corporate
 
 ---
 
+## Required Stack (non-negotiable)
+
+> **OpenClaw + NVIDIA NemoClaw + OpenShell**, with **NVIDIA Nemotron 3** models, all running **locally on the GB10**.
+
+| Layer | Component | Our usage |
+|---|---|---|
+| Agent framework | **OpenClaw** | Always-on gateway; our reviewer checks are OpenClaw **skills**; output channel (Telegram/Slack). |
+| Reference distribution | **NVIDIA NemoClaw** | One-command install of the stack; serves **Nemotron 3** via Ollama; provides Cursor/Claude Code skills. |
+| Secure runtime | **OpenShell** | Sandboxes execution — deny-by-default network + filesystem isolation, live policy approval. **Demo this as a feature.** |
+| Models | **Nemotron 3** (Nano / Super 120B / Omni / V2 VL) | Local inference only — **no cloud LLM calls** (scored). |
+
+If any layer is missing, the submission fails the stack requirement *and* loses the local-first scoring bucket.
+
+---
+
+## Judging Rubric — How We Win (official weights)
+
+| Criterion | Weight | Our play |
+|---|---|---|
+| **Local-first + always-on** | **30%** | 100% on-GB10 inference (Nemotron via Ollama), **zero cloud calls**. Make it **proactive**: the reviewer watches a drawings folder/inbox and auto-emits a punch-list when a new P&ID lands — "acts on its own over time," not request-response. Show OpenShell's deny-by-default network blocking egress live. |
+| **Business value** | **30%** | Lead with a **quantified** corporate pain: offshore asset integrity, "150-day anomaly→resolution cycles," incomplete as-builts, error-cost escalation IFC→construction. Position against Pathnovo's monetized ISA-5.1 cross-validation (99.5% / 600 P&IDs). |
+| **Demo + pitch** | **30%** | Budget real time to rehearse a tight **5-minute pitch**. Open with the gap (HAZOP paper: 0.19–0.37 valid scenarios), show punch-list on a real sheet, end on "data never leaves the box." Pre-compute headline findings so it never stalls. |
+| **Technical execution** | **10%** | Only 10% — get it working end-to-end and **don't break on stage**; use the stack correctly. Don't over-engineer at the expense of the three 30% buckets. |
+
+**Strategic takeaways (from the weights):**
+- **90% of the score is narrative + local-first + working demo**; only 10% is raw engineering. Resist gold-plating the detector — the `.graphml` fast-path exists precisely to protect this balance.
+- **"Acts on its own over time" is explicit** → ship the proactive/scheduled trigger, not just a chatbot.
+- **Any cloud API call directly costs the biggest bucket.** Keep everything on the GB10.
+- **Small-team scoring bonus** stacks on top — keep the team tight (2–3) and scope sharp.
+
+---
+
 ## Why Validation, Not Drafting
 
 Day-to-day P&ID pain is **review and compliance**, not drawing. A P&ID review checklist (iFluids) covers:
