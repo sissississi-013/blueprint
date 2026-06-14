@@ -116,11 +116,11 @@ Incremental re-validation (not full re-scan) is both the autonomy story and a ge
 ## WOW demo script (5 minutes)
 Two windows side-by-side on the GB10 monitor: **draw.io** (the "authoring tool") and the **review pane** (our agent). Presenter speaks as the safety reviewer.
 1. **(0:15) Set the frame.** A real P&ID is open in draw.io; the review pane shows the same diagram as a clean graph. *"Engineers draft in their own tools — here, draw.io stands in for AutoCAD / SmartPlant. They save revisions like always. My agent watches every saved revision — running entirely on this Dell box, no cloud, fully sandboxed. Nothing about their workflow changes."*
-2. **(0:45) Show it's clean + ask it something.** Green overlay: "47 checks passing." Type *"which vessels have relief protection?"* -> those vessels glow green on the graph. (Proves local Nemotron + graph Q&A.)
+2. **(0:45) Show it's clean + ask it something.** Green overlay: "47 checks passing." Type *"which vessels have relief protection?"* -> those vessels glow green on the graph. *"That answer just came from Nemotron running on this box's GPU — no cloud."* (Proves the **GB10 GPU is doing local LLM inference**, not just hosting a script.)
 3. **(1:30) THE BREAK — a real edit, a real save.** In draw.io, **delete the PSV-101 shape and hit Ctrl+S.** The save lands in the watched folder; the agent reacts with no further action: V-101 pulses **red**, a **dashed ghost edge** appears showing the relief path that *should* exist, callout: *"V-101 unprotected — no relief path to flare (API 521)."* Telegram pings at the same moment. (Proves: always-on, continuous, real edit→save→review, visual reasoning, NemoClaw messaging, the safety catch.)
 4. **(2:15) THE MONEY SHOT — suggest-the-fix.** The callout shows *"Suggested fix: add PSV-101, route to flare F-1 [Accept]."* **Click Accept** → the ghost PSV snaps in as a **real** node, the relief routing draws, V-101 goes **green**, "passing" ticks back up. *"It doesn't just find the problem — it proposes the correction, like autocomplete. You stay in control: one click to accept. It never draws unasked."* (Proves: the generative wow, the trustworthy/invisible kind — same engine reversed.)
 5. **(3:00) Next revision.** In draw.io, relabel a node to a duplicate tag and save -> both nodes flash + "duplicate" badge (suggested rename). Delete a control valve's fail-position data and save -> amber (suggested FC). The agent keeps up with each save, no prompting. (Proves continuous autonomy, not one-shot.) *(Fallback: scripted "saved revision" buttons drop the same files — see build plan.)*
-6. **(3:40) Click a finding -> "why?"** Nemotron explains in plain language, cites the standard, and the pane **highlights the subgraph pattern it matched** (visual reasoning trace). (Proves depth + explainability.)
+6. **(3:40) Click a finding -> "why?"** **Nemotron (on the GB10 GPU)** explains in plain language, cites the standard, and the pane **highlights the subgraph pattern it matched** (visual reasoning trace). *"The check is deterministic so it can't be wrong; the explanation is a 30B model reasoning locally."* (Proves depth + explainability + GPU is load-bearing.)
 7. **(4:05) Invisibility proof — feed it a real PDF/image.** Drop an actual P&ID PDF (or screenshot) the way an engineer would have it -> `ingest()` runs the vision adapter (Nano-12B-VL) -> same graph -> same review appears. *"And it's not just draw.io — drop the PDF you already have, no export, no new format."* (Even if rough, this is the move that makes judges feel the zero-switch thesis.)
 8. **(4:35) Close on business.** *"Every revision validated the instant it's saved — before HAZOP, before construction, when fixes are cheapest. It even proposes the fix. We sit on top of your existing tools and read whatever they export. Fully on-prem, so the plant's IP never leaves the building. Sandboxed, so the agent can't exfiltrate it. That's continuous, invisible compliance."*
 
@@ -168,6 +168,23 @@ Rule source for the VF2 patterns: Schulze Balhorn et al., *Rule-Based Autocorrec
 - **OpenShell** — sandboxes the whole agent (Landlock/seccomp/netns), default-deny egress; the canvas reaches it only over an allowed localhost endpoint. This *is* the "agent can't exfiltrate your plant IP" security pitch.
 
 All three are load-bearing, not decorative. Do **not** demo via a bare `python-telegram-bot` bypass — the rubric scores correct stack use; keep that only as a private emergency parachute.
+
+### What the GB10 GPU is doing (have this answer ready — a judge WILL ask)
+The GPU runs the **local Nemotron model(s)**; the deterministic rule engine runs on the Grace CPU **on purpose**.
+
+| GB10 **GPU** (Nemotron inference) | **CPU** (Grace Arm) |
+|---|---|
+| **Narration** — "why is this a violation?" in plain language, citing the standard | Rule engine (R1–R4, VF2, reachability) — microseconds, no GPU |
+| **Q&A** over the graph — "which vessels lack relief protection?" | ingest (DEXPI/graphml/draw.io), graph diff, server, watcher loop |
+| **Vision adapter (stretch)** — read a real P&ID **PDF/scan** → graph via **Nano-12B-VL** (the most GPU-hungry, most GPU-justifying use) | |
+
+**If asked "why do you need a GB10 if your rules are just Python?":**
+1. **The rules are the trust layer — deliberately deterministic.** Nobody buys an AI that *guesses* whether a relief valve is missing; the LLM can't hallucinate a safety pass.
+2. **The GPU does what only a big local model can:** reason in natural language, answer free-form questions over the graph, and **read the messy PDFs/scans engineers actually have** — that's what makes "we read what you already have" true.
+3. **All local** = the entire privacy/compliance thesis: plant IP never leaves the box, no per-token cost, runs air-gapped.
+4. **128 GB unified memory** lets a large reasoner *and* the 12B vision model sit resident simultaneously, always-on — impossible on a 24–48 GB GPU.
+
+> Build implication: get `ollama run nemotron-3-nano` up early so the **Why?** narration and **Q&A glow** visibly hit the GPU — that's what makes the box obviously load-bearing rather than a fancy host for a Python script.
 
 ---
 
