@@ -1,6 +1,8 @@
 # Project — P&ID Reviewer: A Local GB10 Engineering-Diagram Validation Agent
 
-> **This is the build for the day.** See [`hackathon-context.md`](./hackathon-context.md) for event rules and [`sponsor-tech-and-advantages.md`](./sponsor-tech-and-advantages.md) for the hardware/stack/leverage analysis. This file is the project spec + build playbook.
+> **This is the build for the day.** See [`hackathon-context.md`](./hackathon-context.md) for event rules and [`sponsor-tech-and-advantages.md`](./sponsor-tech-and-advantages.md) for the hardware/stack/leverage analysis. This file is the project framing + rubric strategy.
+>
+> **➡️ For implementation, use [`build-spec.md`](./build-spec.md)** — the working spec with the decided **graph-first** architecture, exact datasets/commands, the concrete rule set, Nemotron model IDs + serving, and the hour-by-hour plan. Where the two differ, `build-spec.md` is authoritative: the detector-training path described below is **demoted to a stretch goal** — start from PID2Graph `.graphml` / pyDEXPI instead.
 
 ---
 

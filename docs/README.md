@@ -6,7 +6,8 @@ This folder is the shared **context window** for the Dell × NVIDIA Hackathon ("
 
 | File | What's in it |
 |---|---|
-| [`project.md`](./project.md) | **What we're building today: the "P&ID Reviewer" — a local engineering-diagram validation agent.** Full spec, architecture (detector → graph → LLM reasoner), model choices, staged build playbook, resources to clone, and risks. **Read this first** to know the plan. |
+| [`build-spec.md`](./build-spec.md) | **The working build spec — source of truth for implementation.** Graph-first architecture, exact datasets + download commands, the concrete rule set (ISA-5.1 / API 520-521 / IEC 61511 + the 33 TU Delft rule-graph checks), exact Nemotron model IDs + serving commands, hour-by-hour plan, demo script, and fallbacks. **Read this to build.** |
+| [`project.md`](./project.md) | Higher-level project framing: the "P&ID Reviewer" pitch, why-it-wins-the-rubric, required-stack mapping, and the rubric strategy. Good for orientation; `build-spec.md` supersedes it on implementation detail. |
 | [`hackathon-context.md`](./hackathon-context.md) | The event itself: overview, challenge, required stack, teams, prizes, rules, FAQ, logistics, and application status. Read for "what are the rules / constraints." |
 | [`sponsor-tech-and-advantages.md`](./sponsor-tech-and-advantages.md) | Deep dive on the hardware (GB10), the models (Nemotron 3), and the stack (OpenClaw + NemoClaw + OpenShell), plus the "unfair advantages" to exploit. Read for "why this stack, what to leverage." |
 
