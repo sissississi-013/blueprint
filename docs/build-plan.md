@@ -21,6 +21,8 @@ An **always-on P&ID Copilot** that runs entirely on the Dell GB10: it watches th
 | D5 | **Nemotron Nano-30B (Ollama) for reasoning/narration; Nano-12B-VL for the vision adapter only. Skip Super-120B.** | Bandwidth-bound box; Nano is fast enough and co-fits. |
 | D6 | **All three stack components are load-bearing: OpenClaw (agent+tools+loop), NemoClaw (inference+Telegram), OpenShell (sandbox).** No bare-bridge bypass in the demo. | Rubric scores correct stack use (10%) + the security narrative (30% business). |
 | D7 | **Python is the brain (ingest/graph/rules/diff/loop/websocket); OpenClaw skills are thin HTTP wrappers to it.** | Rule engine is Python (NetworkX/VF2); keeps OpenClaw orchestrating without porting graph logic to TS. |
+| D8 | **"Suggest-the-fix" is our only generation: a rule fires → emit the corrective subgraph/value → one-click accept. NO from-scratch P&ID generation.** | Validation is a *subset* of generation; full generation adds a generative model + layout + hides the trust problem, and it's maximally "switch-y" (violates invisibility). Suggest-the-fix is the *same engine reversed* (Schweidtmann autocorrection, arXiv 2502.18493): generation's wow with validation's trust. |
+| D9 | **Scope to four demo-critical rules: R1 relief path, R2 duplicate tag, R3 fail position, R4 level instrument.** R5/R6 are stretch. | The felt "overcomplication" is the 33-rule pile, not the problem. Four rules demo beautifully; two of them (R1, R4) drive the one-click-fix money shot. |
 
 ---
 
@@ -168,8 +170,16 @@ class GhostEdge(BaseModel):       # the "what SHOULD exist" overlay
     implied_node: Optional[Node] = None
     style: str = "ghost"
 
+class ProposedFix(BaseModel):     # SUGGEST-THE-FIX: the corrective delta, one-click acceptable
+    kind: str                     # "add_subgraph" (missing-component) | "set_attr" | "rename"
+    summary: str                  # "Add PSV-101 and route to flare F-1"
+    add_nodes: list[Node] = []    # promoted from the ghost (implied) nodes -> real
+    add_edges: list[Edge] = []    # the relief routing, etc.
+    set_attrs: dict = {}          # {node_id: {"fail_position": "FC"}}  for attribute fixes
+    rename: dict = {}             # {node_id: "PT-102"}                 for duplicate-tag fixes
+
 class Finding(BaseModel):
-    rule_id: str                  # "R1" ... "R6"
+    rule_id: str                  # "R1" ... "R4" (R5/R6 stretch)
     severity: Severity
     node_ids: list[str]           # offending node(s) to highlight
     edge_ids: list[str] = []
@@ -177,6 +187,7 @@ class Finding(BaseModel):
     standard_ref: str             # "API 521 §5" | "ISA-5.1" | "IEC 61511"
     ghost_edges: list[GhostEdge] = []
     matched_subgraph: list[str] = []   # node ids of the VF2 match (for the highlight beat)
+    fix: Optional[ProposedFix] = None  # SUGGEST-THE-FIX: present when the rule knows the correction
     explanation: Optional[str] = None  # filled in lazily by the LLM, on demand
 ```
 
@@ -191,11 +202,14 @@ JSON messages, both directions, over `ws://localhost:8000/ws`.
 { "type": "highlight",  "node_ids": [...], "subgraph": [...] }      # Q&A glow / subgraph-match beat
 { "type": "explanation","rule_id": "R1", "text": "..." }           # async narration arrives
 
-# pane -> server  (demo control + Q&A)
+# pane -> server  (demo control + Q&A + fix)
 { "type": "apply_revision", "name": "delete_psv_101" }             # scripted "engineer saved a revision"
 { "type": "ask", "text": "which vessels have relief protection?" } # natural-language Q&A
 { "type": "why", "rule_id": "R1" }                                 # request explanation for a finding
+{ "type": "accept_fix", "rule_id": "R1", "node_ids": ["V-101"] }   # SUGGEST-THE-FIX one-click accept
 ```
+
+When `accept_fix` arrives, the server applies the `ProposedFix` to the graph as a **new revision**, re-validates, and pushes a fresh `graph` + `annotations`: the ghost PSV becomes a **real** node, the finding clears, and the green "passing" count ticks up. That round-trip *is* the generative money shot.
 
 ### 4.4 `ingest()` dispatcher (`ingest/base.py`)
 ```python
@@ -210,6 +224,7 @@ HTTP surface (FastAPI, all localhost):
 - `POST /revision` `{name}` (demo) → applies a scripted mutation, triggers loop
 - `POST /explain` `{rule_id}` → `{text}` (calls LLM)
 - `POST /ask` `{text}` → `{answer, highlight_node_ids}`
+- `POST /accept_fix` `{rule_id, node_ids}` → applies `ProposedFix` as a new revision → `{revision, graph, findings, passing}`
 - `GET  /health` → stack readiness (ollama up, model loaded, graph loaded)
 
 ---
@@ -226,38 +241,53 @@ class RuleEngine:
         Each rule self-skips nodes lacking required attrs (source_fidelity gating)."""
     def passing_count(self, G, findings) -> int: ...   # for the green "N checks passing" overlay
 ```
-Each `Rule` declares `requires: set[str]` (e.g. `{"tag"}`, `{"fail_position"}`) and `touches(node) -> bool` so incremental validation only reruns relevant rules. **Rule order matters for the pump set** (apply R5's block-valve/strainer/check-valve sub-patterns consistently). Determinism + sub-ms VF2 (paper: ~3.2 ms/rule) means a full re-scan is also cheap — incremental is for the "technical depth" story and large sheets.
+Each `Rule` declares `requires: set[str]` (e.g. `{"tag"}`, `{"fail_position"}`) and `touches(node) -> bool` so incremental validation only reruns relevant rules. Determinism + sub-ms VF2 (paper: ~3.2 ms/rule) means a full re-scan is also cheap — incremental is for the "technical depth" story and large sheets. **Each rule also returns its `ProposedFix`** (see §5.4) so the engine and the suggest-the-fix layer are one and the same.
 
-### 5.2 The six rules (concrete logic + visual)
+### 5.2 The four demo-critical rules (concrete logic + visual + fix) — D9
+> Scope is **four rules**. R1 + R4 are *missing-component* rules → corrective **subgraph** (ghost → one-click accept), the money shots. R2 + R3 → corrective **value**. R5/R6 are stretch (§5.3).
+>
+> **Keep the ISA-5.1 tag parser as a shared util** (derives `measured_var` from a tag's first letter) — R4 needs it to find "level" instruments — even though R6-as-a-surfaced-finding is now stretch.
 
-**R1 — Vessel has no relief path (API 521) · RED · LEAD WITH THIS.**
+**R1 — Vessel has no relief path (API 521) · RED · LEAD WITH THIS. [missing-component → subgraph fix]**
 - Required attrs: node types (`vessel`, `psv`/`rupture_disc`, `flare`/`disposal`).
 - Logic: for each `VESSEL`, search (BFS over process edges, ignoring direction through valves) for a path `vessel → … → (PSV|RUPTURE_DISC) → … → (FLARE|DISPOSAL)`. If none: **Finding(RED)**.
-- **Ghost edge:** emit `GhostEdge(source=vessel, implied_node=Node(type=PSV, label="PSV (missing)"))` plus a dashed edge to the nearest flare/disposal — *this is the dramatic "draw the missing thing" beat.*
+- **Ghost edge:** `GhostEdge(source=vessel, implied_node=Node(type=PSV, label="PSV (missing)"))` + dashed edge to the nearest flare/disposal — the dramatic "draw the missing thing" beat.
+- **Fix:** `ProposedFix(kind="add_subgraph", summary="Add PSV-<n> on V-101 and route to flare F-1", add_nodes=[<PSV>], add_edges=[vessel→PSV, PSV→flare])`. Accept → ghost becomes real → R1 clears.
 
-**R2 — Duplicate instrument tag · RED.**
+**R2 — Duplicate instrument tag · RED. [value fix]**
 - Required: `tag`. Logic: group nodes by normalized `tag`; any group size > 1 → Finding(RED) listing all offenders; `matched_subgraph` = the duplicate set (pane links them with a "duplicate" badge).
+- **Fix:** `ProposedFix(kind="rename", summary="Rename the second PT-101 to PT-102", rename={dup_node_id: <next free loop number for that variable>})`.
 
-**R3 — Control valve missing fail position · AMBER.**
+**R3 — Control valve missing fail position · AMBER. [value fix]**
 - Required: `type==control_valve`. Logic: if `fail_position not in {FO,FC,FL}` → Finding(AMBER); amber node.
+- **Fix:** `ProposedFix(kind="set_attr", summary="Set FV-203 fail position to FC (fail-closed)", set_attrs={cv_id: {"fail_position": "FC"}})`. Default to **FC** (conservative/safe) and say so.
 
-**R4 — Vessel missing level instrument (Schulze Balhorn Rule 9, mandatory) · RED.**
-- Required: vessel + instrument types/tags. Logic (VF2): pattern = a `VESSEL` with an adjacent `INSTRUMENT` whose `measured_var == "L"` (level). If the corrected pattern has no match for a given vessel → missing → Finding(RED). Use `nx.algorithms.isomorphism` subgraph matcher with a node-match predicate on `type`/`measured_var`.
+**R4 — Vessel missing level instrument (Schulze Balhorn Rule 9, mandatory) · RED. [missing-component → subgraph fix]**
+- Required: vessel + instrument types/tags. Logic (VF2): pattern = a `VESSEL` with an adjacent `INSTRUMENT` whose `measured_var == "L"` (level). If no match for a given vessel → missing → Finding(RED). Use `nx.algorithms.isomorphism` subgraph matcher on `type`/`measured_var`.
+- **Fix:** `ProposedFix(kind="add_subgraph", summary="Add level instrument LIT-<n> on V-101", add_nodes=[<LIT>], add_edges=[vessel→LIT])`.
 
-**R5 — Pump protection set (Rules 10/19/21) · AMBER (each).**
-- Required: pump + adjacent valve/strainer types. For each `PUMP`, check three sub-patterns:
-  - discharge line has a `CHECK_VALVE` (Rule 19) — else AMBER + ghost check valve on discharge edge;
-  - suction line has a `STRAINER` (Rule 10) — else AMBER + ghost strainer;
-  - suction & discharge each have `BLOCK_VALVE` + a drain (Rule 21) — else AMBER.
-- Orientation via edge direction (suction = inbound, discharge = outbound).
+### 5.3 Stretch rules (only if green by H8.5)
+- **R5 — Pump protection set (Rules 10/19/21):** discharge `CHECK_VALVE` (19), suction `STRAINER` (10), block valves + drain (21); each missing → AMBER + ghost component + subgraph fix. Orientation via edge direction. Rule order matters (apply 21 before 10/19).
+- **R6 — ISA-5.1 tag grammar:** regex `^([A-Z])([A-Z]*)-?(\d+)$`; first-letter ∈ measured-variable set, succeeding letters ∈ function set, loop number present. (Its **parser is already a shared util** used by R4.)
+- PSV isolatable by a closed block valve (API 520/521); SIS/BPCS separation (IEC 61511); dangling/orphan nodes (works even on topology-only graphs).
 
-**R6 — ISA-5.1 tag grammar · RED (malformed) / AMBER (questionable).**
-- Required: `tag`. Logic: regex `^([A-Z])([A-Z]*)-?(\d+)$`; validate first-letter ∈ measured-variable set `{A,F,L,P,T,S,W,V,Z,...}`, succeeding letters ∈ function set `{I,R,C,T,Y,Q,G,A,V,E,...}` with modifiers `{H,L,D}`; loop number present. Derive `measured_var` from first letter (feeds R4). Malformed/missing loop number → finding.
+### 5.4 Suggest-the-fix — generation as the engine reversed (the wow layer, D8)
+Validation and generation are **the same engine pointed in opposite directions**: the rule that *detects* "V-101 has no relief path" already computes the corrective subgraph it would *add*. So each rule returns a `ProposedFix` alongside its `Finding` (§4.2). This is the Schweidtmann autocorrection pattern (arXiv 2502.18493) — and the only "generation" we do. **No from-scratch P&ID synthesis** (it's a superset of validation, needs a generative model + layout, and is maximally switch-y — see D8).
 
-**Stretch rules:** PSV isolatable by a closed block valve (API 520/521); SIS/BPCS separation (IEC 61511, tag-class check); dangling/orphan nodes (graph integrity — works even on topology-only graphs).
+Flow:
+```
+rule fires -> Finding{..., ghost_edges, fix: ProposedFix}
+   pane shows the red-line + the ghost (the "what should exist")
+   + an [Accept fix] affordance on the finding
+user clicks Accept -> {type:"accept_fix", rule_id, node_ids}
+   server: apply fix to graph (promote ghost nodes->real, add edges / set attr / rename)
+           -> NEW revision -> re-validate -> push {graph, annotations, passing}
+   result: ghost PSV becomes REAL, finding clears, green "passing" count ticks up
+```
+**Why this is the right kind of generation:** it's a *suggestion you accept* (autocomplete-style), not an imposition — trustworthy (deterministic, standard-cited), invisible (no new authoring behavior), and it's the demo money shot. `apply_fix(graph, fix) -> graph'` lives in `rules/engine.py` (or `graph/` ) and is pure/deterministic.
 
-### 5.3 Rule output → annotation mapping (server)
-On each validate, server sends `{type:"annotations", findings, passing}`. The pane maps: `severity→node class` (red/amber), `ghost_edges→dashed ghost elements (+ implied nodes)`, `matched_subgraph→"matched" class on demand`, duplicate sets → badge.
+### 5.5 Rule output → annotation mapping (server)
+On each validate, server sends `{type:"annotations", findings, passing}`. The pane maps: `severity→node class` (red/amber), `ghost_edges→dashed ghost elements (+ implied nodes)`, `matched_subgraph→"matched" class on demand`, duplicate sets → badge, and **`fix` present → an [Accept fix] button on the finding callout.**
 
 ---
 
@@ -340,6 +370,7 @@ Ordered list the pane's buttons invoke via `POST /revision {name}`. Deterministi
 | `validate(revision, scope?)` | `POST /validate` | findings (rule_id, severity, message, standard_ref) |
 | `diff_revisions(a,b)` | `POST` diff | changed components + regressions ("PSV-101 removed") |
 | `explain_finding(rule_id)` | `POST /explain` | passes finding context to model; returns narration |
+| `accept_fix(rule_id, node_ids)` | `POST /accept_fix` | applies the `ProposedFix` → new revision → cleared finding (suggest-the-fix) |
 | `ask_graph(question)` | `POST /ask` | answer + node ids to highlight |
 
 The **always-on trigger**: an OpenClaw scheduled/file-watch skill watches `/sandbox/revisions/`; a new file → `ingest_revision` → `validate` → if findings changed, `explain_finding` (async) + Telegram alert. In the demo the pane's button also drops a file there (or calls `/revision`), so the *same* path fires — autonomy is real, not faked.
@@ -425,8 +456,8 @@ Also pre-write `run.sh` and rehearse `nemoclaw.sh → onboard → Ollama provide
 |---|---|---|---|---|
 | **H0–1** | NemoClaw onboard, Ollama+Nano-30B, OpenShell policy, Telegram "hello" round-trip | `requirements` install from wheels; FastAPI skeleton + `/health` + WebSocket echo | Static pane loads, Cytoscape renders a hardcoded 3-node graph over WS | Telegram↔Nemotron works **and** pane shows a graph from the server |
 | **H1–2.5** | OpenClaw skill stubs (HTTP wrappers) hitting `/health`,`/validate`; draw.io offline + stencil load verified | **`schema.py` + `dexpi_adapter` + `graphml_adapter` + `drawio_adapter`**; load C01 → canonical `PidGraph`; `diff.py` | Pane renders the real loaded graph; layout/labels readable | A real DEXPI graph **and** a `.drawio` save both render in the pane |
-| **H2.5–5** | wire `validate`/`explain` skills; trigger that watches `/sandbox/revisions/` (catches draw.io saves + scripted drops) | **Rule engine + R1,R2,R3,R6** (R1 ghost edge!); `make_broken.py` revisions | annotation applier: red/amber classes, ghost-edge style, duplicate badge, "N passing" overlay | Edit in draw.io + Ctrl+S → V-101 red + ghost edge in the pane (and the scripted-button path also works) |
-| **H5–6** | Nemotron narration (`/explain`) + Q&A (`/ask`) via NemoClaw; Telegram delta alert on RED | **R4 + R5** (VF2 patterns) | "why?" click → callout; Q&A glow; subgraph-match highlight | All 6 rules fire on broken graph; Telegram pings on the break |
+| **H2.5–5** | wire `validate`/`explain`/`accept_fix` skills; trigger that watches `/sandbox/revisions/` (catches draw.io saves + scripted drops) | **Rule engine + R1,R2,R3** (R1 ghost edge + `ProposedFix`!); `make_broken.py` revisions | annotation applier: red/amber classes, ghost-edge style, duplicate badge, "N passing" overlay, **[Accept fix] button** | Edit in draw.io + Ctrl+S → V-101 red + ghost edge in the pane (and the scripted-button path also works) |
+| **H5–6** | Nemotron narration (`/explain`) + Q&A (`/ask`) via NemoClaw; Telegram delta alert on RED; **`apply_fix` → accept_fix round-trip** | **R4** (VF2 pattern) + `ProposedFix` for all four | "why?" click → callout; **Accept fix → ghost becomes real, finding clears, passing++**; Q&A glow; subgraph-match highlight | All 4 rules fire; **R1 Accept-fix money shot works**; Telegram pings on the break |
 | **H6–7** | full continuous loop through OpenClaw (trigger→ingest→validate→alert); regression detection | incremental `scope` validation + revision state | polish red/amber/green, animations | The whole loop runs unprompted from a dropped revision file |
 | **H7–8.5** | — | harden; unit tests on tiny graphs; freeze `fixtures/` | ghost-edge animation, subgraph highlight beat, green overlay count | Demo runs clean on frozen fixtures, no manual prodding |
 | **H8.5–9.5** | help vision adapter routing/policy | **vision adapter**: one PDF → graph (Nano-12B-VL or detector) | render the vision-ingested graph identically | One real PDF round-trips to a review (or frozen fallback used) |
@@ -461,14 +492,15 @@ Rule: **the deterministic rule engine + pane red-line is the floor** — if only
 **MVP (must have for a credible demo — protect these):**
 - [ ] Nano-30B served locally via NemoClaw; Telegram round-trip works.
 - [ ] DEXPI/`.graphml` ingest → canonical graph → pane render.
-- [ ] Rules R1, R2, R3, R6 firing; **R1 ghost edge** visible.
+- [ ] Rules R1, R2, R3 firing; **R1 ghost edge** visible.
 - [ ] Scripted "Delete PSV-101" revision (button → watched folder) → instant red-line + Telegram ping.
+- [ ] **R1 Suggest-the-fix: [Accept] → ghost PSV becomes real → finding clears, passing++.** (The generative money shot.)
 - [ ] Click-to-explain narration from Nemotron.
 - [ ] 5-min script rehearsed on frozen fixtures.
 
-**Target (the winning demo):** + **live draw.io edit → Ctrl+S → red-line** (the real edit→save beat) · R4, R5 · Q&A glow · subgraph-match highlight · revision-regression message · full OpenClaw continuous loop.
+**Target (the winning demo):** + **live draw.io edit → Ctrl+S → red-line** (the real edit→save beat) · **R4** + Accept-fix on all four · Q&A glow · subgraph-match highlight · revision-regression message · full OpenClaw continuous loop.
 
-**Stretch (only if green by H8.5):** vision PDF/image ingest · OpenShell egress-block TUI beat · OPEN100 graphml realism sheet · SIS/BPCS + PSV-isolation rules.
+**Stretch (only if green by H8.5):** vision PDF/image ingest · OpenShell egress-block TUI beat · OPEN100 graphml realism sheet · **R5 pump-set / R6 ISA-grammar rules** · SIS/BPCS + PSV-isolation rules.
 
 ---
 

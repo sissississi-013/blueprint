@@ -118,27 +118,33 @@ Two windows side-by-side on the GB10 monitor: **draw.io** (the "authoring tool")
 1. **(0:15) Set the frame.** A real P&ID is open in draw.io; the review pane shows the same diagram as a clean graph. *"Engineers draft in their own tools — here, draw.io stands in for AutoCAD / SmartPlant. They save revisions like always. My agent watches every saved revision — running entirely on this Dell box, no cloud, fully sandboxed. Nothing about their workflow changes."*
 2. **(0:45) Show it's clean + ask it something.** Green overlay: "47 checks passing." Type *"which vessels have relief protection?"* -> those vessels glow green on the graph. (Proves local Nemotron + graph Q&A.)
 3. **(1:30) THE BREAK — a real edit, a real save.** In draw.io, **delete the PSV-101 shape and hit Ctrl+S.** The save lands in the watched folder; the agent reacts with no further action: V-101 pulses **red**, a **dashed ghost edge** appears showing the relief path that *should* exist, callout: *"V-101 unprotected — no relief path to flare (API 521)."* Telegram pings at the same moment. (Proves: always-on, continuous, real edit→save→review, visual reasoning, NemoClaw messaging, the safety catch.)
-4. **(2:30) Next revision.** In draw.io, relabel a node to a duplicate tag and save -> both nodes flash + "duplicate" badge. Delete a control valve's fail-position data and save -> it turns amber. The agent keeps up with each save, no prompting. (Proves continuous autonomy, not one-shot.) *(Fallback: scripted "saved revision" buttons drop the same files — see build plan.)*
-5. **(3:30) Click a finding -> "why?"** Nemotron explains in plain language, cites the standard, and the pane **highlights the subgraph pattern it matched** (visual reasoning trace). (Proves depth + explainability.)
-6. **(4:00) Invisibility proof — feed it a real PDF/image.** Drop an actual P&ID PDF (or screenshot) the way an engineer would have it -> `ingest()` runs the vision adapter (Nano-12B-VL) -> same graph -> same review appears. *"And it's not just draw.io — drop the PDF you already have, no export, no new format."* (Even if rough, this is the move that makes judges feel the zero-switch thesis.)
-7. **(4:30) Close on business.** *"Every revision validated the instant it's saved — before HAZOP, before construction, when fixes are cheapest. We sit on top of your existing tools and read whatever they export. Fully on-prem, so the plant's IP never leaves the building. Sandboxed, so the agent can't exfiltrate it. That's continuous, invisible compliance."*
+4. **(2:15) THE MONEY SHOT — suggest-the-fix.** The callout shows *"Suggested fix: add PSV-101, route to flare F-1 [Accept]."* **Click Accept** → the ghost PSV snaps in as a **real** node, the relief routing draws, V-101 goes **green**, "passing" ticks back up. *"It doesn't just find the problem — it proposes the correction, like autocomplete. You stay in control: one click to accept. It never draws unasked."* (Proves: the generative wow, the trustworthy/invisible kind — same engine reversed.)
+5. **(3:00) Next revision.** In draw.io, relabel a node to a duplicate tag and save -> both nodes flash + "duplicate" badge (suggested rename). Delete a control valve's fail-position data and save -> amber (suggested FC). The agent keeps up with each save, no prompting. (Proves continuous autonomy, not one-shot.) *(Fallback: scripted "saved revision" buttons drop the same files — see build plan.)*
+6. **(3:40) Click a finding -> "why?"** Nemotron explains in plain language, cites the standard, and the pane **highlights the subgraph pattern it matched** (visual reasoning trace). (Proves depth + explainability.)
+7. **(4:05) Invisibility proof — feed it a real PDF/image.** Drop an actual P&ID PDF (or screenshot) the way an engineer would have it -> `ingest()` runs the vision adapter (Nano-12B-VL) -> same graph -> same review appears. *"And it's not just draw.io — drop the PDF you already have, no export, no new format."* (Even if rough, this is the move that makes judges feel the zero-switch thesis.)
+8. **(4:35) Close on business.** *"Every revision validated the instant it's saved — before HAZOP, before construction, when fixes are cheapest. It even proposes the fix. We sit on top of your existing tools and read whatever they export. Fully on-prem, so the plant's IP never leaves the building. Sandboxed, so the agent can't exfiltrate it. That's continuous, invisible compliance."*
 
-**Wow levers to rehearse:** a **real edit in a real tool → Ctrl+S → instant red-line** (no submit, no switch to our app); the **ghost edge** drawing the missing thing (more striking than just flagging what's wrong); the simultaneous Telegram ping; the live subgraph-match highlight; and the **PDF/image ingest** that proves "we read what you already make." **Rehearse the draw.io edits to muscle memory; keep scripted-button fallbacks one keypress away.**
+**Wow levers to rehearse:** a **real edit in a real tool → Ctrl+S → instant red-line** (no submit, no switch to our app); the **ghost edge** drawing the missing thing (more striking than just flagging what's wrong); the **one-click Accept that turns the ghost into a real, passing fix** (generation's wow, autocomplete's trust); the simultaneous Telegram ping; the live subgraph-match highlight; and the **PDF/image ingest** that proves "we read what you already make." **Rehearse the draw.io edits to muscle memory; keep scripted-button fallbacks one keypress away.**
 
 ---
 
-## Validation checks (prioritized for the demo)
-Deterministic, on the graph. Build top-down; each is a clean visual.
-1. **Vessel has no relief path** (API 521) — reachability vessel->PSV/PSE->disposal sink. *Ghost edge = the missing path.* <- lead with this.
-2. **Duplicate instrument tag** — classic real error; visually links the offenders.
-3. **Control valve missing fail position** (FO/FC/FL) — attribute check; amber node.
-4. **Vessel missing level instrument** (Schulze Balhorn Rule 9, mandatory) — VF2 pattern.
-5. **Pump protection set** — discharge check valve (Rule 19), suction strainer (Rule 10), block valves + drain (Rule 21).
-6. **ISA-5.1 tag grammar** — first-letter in valid variable set, valid succeeding letters, loop number present.
+## Validation checks (scoped to four — deliberately)
+Deterministic, on the graph. **Scope is four demo-critical rules** — the felt "overcomplication" is the 33-rule pile, not the problem; four demo beautifully and two of them drive the one-click-fix money shot. Build top-down; each is a clean visual.
+1. **Vessel has no relief path** (API 521) — reachability vessel→PSV/PSE→disposal sink. *Ghost edge = the missing path.* **← lead with this; missing-component → suggest-the-fix.**
+2. **Duplicate instrument tag** — classic real error; visually links the offenders. (Fix: rename to next free loop number.)
+3. **Control valve missing fail position** (FO/FC/FL) — attribute check; amber node. (Fix: set FC, fail-closed/conservative.)
+4. **Vessel missing level instrument** (Schulze Balhorn Rule 9, mandatory) — VF2 pattern. **Missing-component → suggest-the-fix.**
 
-Stretch: PSV isolatable by a closed block valve; SIS/BPCS separation (IEC 61511); dangling/orphan nodes.
+Stretch (only if green): pump protection set (Rules 10/19/21); ISA-5.1 tag grammar; PSV isolatable by a closed block valve; SIS/BPCS separation (IEC 61511); dangling/orphan nodes.
 
 Rule source for the VF2 patterns: Schulze Balhorn et al., *Rule-Based Autocorrection of P&IDs on Graphs*, arXiv 2502.18493 (33 rules, runs in ms via NetworkX VF2).
+
+## Suggest-the-fix — the generative wow, the trustworthy kind
+**Validation and generation are the same engine pointed in opposite directions.** The rule that detects "V-101 has no relief path" already computes the corrective subgraph it would *add* — so when a **missing-component** rule fires, the agent doesn't just flag it, it **proposes the fix**: the dashed ghost edge becomes a **one-click-acceptable** real edge ("here's the PSV and routing I'd add → Accept"). Attribute/duplicate rules propose a corrected value (rename / set FC). This is exactly the Schweidtmann autocorrection line (arXiv 2502.18493): *detect the error, then generate the correction.*
+
+**Why this and not full generation:** full P&ID generation is a *superset* of validation (you must encode every validation constraint **plus** a generative model **plus** layout), it hides the trust problem (a judge asks "why is that valve there?" and an unconstrained generator has no defensible answer — the researchers themselves frame their output as *recommendations*, not autonomous drawing), and it is the **most switch-y product in the space** — the opposite of the invisibility thesis. Suggest-the-fix gives generation's wow with validation's trust and invisibility: a *suggestion you accept* (autocomplete-style), not an imposition. **Same graph core, same rule engine, ~one extra step** (emit the corrective subgraph instead of only a flag). We are not rebuilding anything.
+
+> Generation spectrum, for the record — NL→full-P&ID (coolest-looking, worst trust, maximally switch-y → **skip**); PFD→P&ID elaboration (a new step for them); autocomplete-next-component (needs a trained generative model we don't have time for); **suggest-the-fix / autocorrect (same engine, max trust, fully invisible, one-click accept) ← this one.**
 
 ---
 
