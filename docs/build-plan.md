@@ -4,6 +4,29 @@
 
 ---
 
+## 0b. Pre-flight & de-risking (post-review — READ FIRST)
+
+Decisions adopted after a hard pre-event review. These override anything older in this doc.
+
+**Three things that could sink the demo — handle first:**
+1. **Invert loop ownership: Python owns the autonomy heartbeat; OpenClaw is the agent face.** A Python file-watcher (watchdog/polling on `/sandbox/revisions/`) drives ingest→validate→annotate→alert. OpenClaw hosts the session, routes Q&A/narration, and posts via NemoClaw's Telegram bridge — still genuine, scored stack use, but if OpenClaw's trigger is flaky you lose *narration, not autonomy*. (~40% of the score rode on the riskiest, never-run component; this removes that.) Implemented in `pidcopilot/server.py` (watcher) + `agent/` (OpenClaw face).
+2. **Verify the demo graph PRE-DAY (at home), not at H2.5.** R1–R4 need a graph that actually contains a vessel, a PSV, a flare/disposal, a control valve, and a level instrument. Run `scripts/verify_dexpi.py` on pyDEXPI's C01 *on the Mac*. If C01 is too thin, fall back to `pidcopilot/demo/synthetic.py` (a hand-built graph guaranteed to contain exactly what the four rules need). **The demo backbone is the synthetic graph, so it never depends on C01 parsing.**
+3. **MacBook validation ≠ GB10 validation.** Ollama serving an MoE GGUF on sm_121, NemoClaw, the draw.io AppImage, OpenShell localhost reachability — only truly proven on GB10/DGX Spark. Pre-test the exact serve command on ARM if possible; prefer the official `ollama run nemotron-3-nano` tag over a first-try Unsloth GGUF import. **Get hardware pre-access if at all possible.**
+
+**Scope cuts (buy back hours):**
+- **Cut diff-as-scoping.** At 30–200 nodes × ~3 ms/rule, a full re-scan per revision is microseconds. `diff.py` is kept **only** for regression messaging ("PSV-101 removed"), not for validation scoping. "We support incremental for large sheets" is a *talking point*, not code.
+- **Decouple the dramatic finding from the reliable fix.** Lead the *finding* with R1 (the scary missing relief valve), but make the **one-click accept-fix money shot ride on R3 (set `fail_position=FC`) or R2 (rename duplicate)** — bulletproof value-fixes. R1's add-subgraph fix is shown as the *impressive bonus*. The "watch it fix itself" beat must not be able to break.
+- **draw.io live-edit = bonus only; protect [A]'s time.** The scripted file-drop already tells the invisibility story. Do **not** let the agent person verify draw.io ARM/offline/compression in H1–2.5 while NemoClaw is the actual fire.
+- **Confirm OpenClaw config-based tool registration before hand-writing TS skills.** If it can register HTTP/MCP-style tools from config, skip the TS layer and the extra contract entirely.
+
+**Five-minute correctness nits (baked into the code):**
+- **Tag regex loosened** to allow prefixes/suffixes: `^(\d+-)?([A-Z])([A-Z]*)-?(\d+)([A-Z])?$` (handles `PSV-101A`, `10-PSV-101`). Normalize before matching.
+- **R1 with no flare node:** imply a disposal sink too (ghost flare) and/or flag "no disposal system" separately — never throw on a missing target.
+- **Defensible passing count:** report `checks_run / passing / issues` with a **stable denominator**, not a number that jumps oddly between revisions.
+- **Telegram zero-egress wording:** only a **terse notification** leaves the box (to `api.telegram.org`); **diagram content/IP never leaves** and is kept out of the alert text. Prefer the pane's **local alert feed** as the primary on-stage surface so the claim is airtight.
+
+---
+
 ## 0. What we are building (one paragraph)
 
 An **always-on P&ID Copilot** that runs entirely on the Dell GB10: it watches the P&ID revisions an engineer saves (in their own tool), converts each into a graph via an `ingest()` adapter, runs a **deterministic rule engine** that flags safety/compliance violations and draws **ghost edges** for what *should* exist, renders the result live on a **review pane** (Cytoscape.js), and uses a **local Nemotron model (via NemoClaw)** purely to *narrate* findings and answer graph Q&A. The whole agent is sandboxed by **OpenShell** (default-deny egress), and **NemoClaw's Telegram bridge** posts delta alerts. Nothing leaves the box; nothing about the engineer's workflow changes.

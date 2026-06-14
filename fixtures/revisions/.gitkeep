@@ -1,0 +1,3 @@
+# Watched folder: draw.io Ctrl+S / scripted drops land here; the Python watcher
+# (pidcopilot/server.py) ingests each new .drawio/.xml/.graphml as a new revision.
+# On the GB10 this maps to /sandbox/revisions inside OpenShell.

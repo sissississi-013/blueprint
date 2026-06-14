@@ -48,29 +48,53 @@ blueprint/
 │   ├── project.md                      # Earliest framing (superseded; kept for context)
 │   ├── hackathon-context.md            # Event rules, rubric, prizes, logistics
 │   └── sponsor-tech-and-advantages.md  # Hardware/models/stack deep dive + leverage
-├── src/                  # App code (canvas + agent + rule engine)  [planned]
+├── pidcopilot/           # Python brain: graph schema, ingest adapters, rule engine, server
+│   ├── graph/            # canonical schema + revision diff
+│   ├── ingest/           # dexpi / graphml / drawio / vision adapters + dispatcher
+│   ├── rules/            # engine + R1–R4 (+ R5/R6 stretch) with ProposedFix + apply_fix
+│   ├── demo/             # synthetic backbone + scripted revisions
+│   ├── llm/ · alerts/ · agent/   # Nemotron client, Telegram, prompt contracts
+│   └── server.py         # FastAPI + WebSocket + Python-owned watcher heartbeat
+├── web/                  # Cytoscape.js review pane (index.html / pane.js / style.css)
+├── scripts/verify_demo_graph.py   # PRE-DAY check: do R1–R4 have something to fire on?
+├── tests/                # rule unit tests (8 passing)
+├── requirements.txt · run.sh
 ├── README.md
 └── LICENSE               # MIT
 ```
+
+## Run it (laptop)
+
+```bash
+python3 -m venv .venv && . .venv/bin/activate
+pip install -r requirements.txt
+python scripts/verify_demo_graph.py        # confirms the demo graph satisfies R1–R4
+pytest -q                                  # 8 rule tests
+./run.sh                                   # serve the brain + pane at http://127.0.0.1:8000
+```
+
+The deterministic core (ingest → rules → suggest-the-fix → pane) runs fully offline with no model. Nemotron (via NemoClaw) only narrates; Telegram is optional. On the GB10 the agent face + inference are added on top.
 
 ## Status
 
 > Keep this section current — it is the at-a-glance build state.
 
-**Phase: pre-build / planning.** Spec and context locked in `docs/`. Code scaffolding not yet started.
+**Phase: core scaffold built & tested on laptop; stack integration pending on the GB10.**
 
 | Component | State |
 |---|---|
 | Docs / spec (`docs/`) | ✅ Done |
-| NemoClaw + Nemotron (Nano-30B) on GB10 | ⬜ Not started |
-| `ingest()` graph adapters (DEXPI / `.graphml`) + normalize | ⬜ Not started |
-| draw.io adapter (mxGraph XML) + custom P&ID stencil — live demo surface | ⬜ Not started |
-| Review pane (Cytoscape.js) + scripted "new revision" buttons | ⬜ Not started |
-| Deterministic rule engine (checks 1–6, VF2 patterns) + ghost-edges | ⬜ Not started |
-| Continuous loop (revision-diff, incremental re-validate, revision state) | ⬜ Not started |
-| OpenClaw tools + Nemotron narration / Q&A | ⬜ Not started |
-| NemoClaw Telegram delta alerts | ⬜ Not started |
-| `ingest()` vision adapter (PDF / image → graph) — invisibility proof | ⬜ Not started |
+| Canonical graph schema + revision diff | ✅ Built |
+| Deterministic rule engine R1–R4 + `ProposedFix` + `apply_fix` (suggest-the-fix) | ✅ Built + tested |
+| Synthetic demo backbone + scripted revisions + pre-day verify script | ✅ Built (verify passes) |
+| `ingest()` adapters: DEXPI / `.graphml` / draw.io | ✅ Built (DEXPI API to confirm on-site) |
+| Review pane (Cytoscape.js) + scripted "new revision" buttons + Accept-fix | ✅ Built |
+| FastAPI server + WebSocket + Python-owned watcher heartbeat | ✅ Built + smoke-tested |
+| Nemotron narration / Q&A client + Telegram alert formatter | ✅ Built (stubs; wire to model on box) |
+| `ingest()` vision adapter (PDF / image → graph) — invisibility proof | 🟡 Stub (stretch) |
+| NemoClaw + Nemotron (Nano-30B) served on GB10 | ⬜ On-site |
+| OpenClaw agent face (skills/tools) + NemoClaw Telegram bridge | ⬜ On-site |
+| draw.io offline on ARM + custom stencil round-trip | ⬜ On-site (verify) |
 
 See [`docs/build-plan.md`](docs/build-plan.md) for the actionable engineering plan (data contracts, rule logic, configs, hour-by-hour) and [`docs/demo-spec.md`](docs/demo-spec.md) for product shape + the 5-min demo script.
 

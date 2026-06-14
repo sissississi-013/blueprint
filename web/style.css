@@ -1,0 +1,40 @@
+:root {
+  --bg: #0e1116; --panel: #161b22; --line: #2a313c; --text: #e6edf3;
+  --red: #f85149; --amber: #d29922; --green: #3fb950; --ghost: #8b949e;
+  --accent: #58a6ff;
+}
+* { box-sizing: border-box; }
+body { margin: 0; font: 14px/1.45 -apple-system, system-ui, sans-serif;
+  background: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; }
+header { display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--panel); }
+.title { font-weight: 700; }
+.title .sub { font-weight: 400; color: var(--ghost); }
+.scorebar { font-variant-numeric: tabular-nums; }
+.scorebar b { color: var(--green); }
+.scorebar .issues { color: var(--red); }
+main { flex: 1; display: flex; min-height: 0; }
+#cy { flex: 1; background:
+  radial-gradient(circle at 1px 1px, #1b212b 1px, transparent 0) 0 0 / 24px 24px; }
+#panel { width: 340px; border-left: 1px solid var(--line); background: var(--panel);
+  padding: 14px; overflow-y: auto; }
+.group-label { text-transform: uppercase; font-size: 11px; letter-spacing: .06em;
+  color: var(--ghost); margin: 16px 0 8px; }
+.controls button { display: block; width: 100%; margin: 6px 0; padding: 9px 10px;
+  background: #21262d; color: var(--text); border: 1px solid var(--line);
+  border-radius: 7px; cursor: pointer; text-align: left; }
+.controls button:hover { border-color: var(--accent); }
+#findings, #alerts { list-style: none; margin: 0; padding: 0; }
+#findings li { border: 1px solid var(--line); border-left-width: 4px;
+  border-radius: 6px; padding: 8px 10px; margin: 6px 0; }
+#findings li.red { border-left-color: var(--red); }
+#findings li.amber { border-left-color: var(--amber); }
+#findings .ref { color: var(--ghost); font-size: 12px; }
+#findings .fix { margin-top: 6px; }
+#findings .fix button { background: var(--green); color: #08230f; border: 0;
+  border-radius: 6px; padding: 5px 10px; cursor: pointer; font-weight: 600; }
+#findings .why { background: transparent; color: var(--accent); border: 0;
+  cursor: pointer; padding: 4px 0; }
+#findings .expl { color: var(--ghost); font-size: 12.5px; margin-top: 6px; }
+#alerts li { color: var(--ghost); font-size: 12.5px; padding: 4px 0;
+  border-bottom: 1px dashed var(--line); }

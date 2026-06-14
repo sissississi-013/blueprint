@@ -1,0 +1,17 @@
+# P&ID Copilot — Python service (the brain)
+# Pin loosely; pip download -d wheels/ before the event for offline install.
+fastapi>=0.110
+uvicorn[standard]>=0.29
+pydantic>=2.6
+networkx>=3.2
+lxml>=5.0
+httpx>=0.27
+watchdog>=4.0
+python-multipart>=0.0.9
+
+# Optional / adapter-specific (install if available; code degrades gracefully without them):
+# pyDEXPI  -> install from source: pip install git+https://github.com/process-intelligence-research/pyDEXPI
+# pytest   -> dev/test only
+
+# Dev
+pytest>=8.0

@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>P&ID Copilot — Review Pane</title>
+  <link rel="stylesheet" href="/app/style.css" />
+  <!-- Vendor Cytoscape locally for offline/on-box use: drop cytoscape.min.js in web/vendor/.
+       Falls back to CDN only when online. -->
+  <script src="/app/vendor/cytoscape.min.js" onerror="loadCdn()"></script>
+  <script>
+    function loadCdn() {
+      var s = document.createElement('script');
+      s.src = 'https://unpkg.com/cytoscape@3.28.1/dist/cytoscape.min.js';
+      document.head.appendChild(s);
+    }
+  </script>
+</head>
+<body>
+  <header>
+    <div class="title">P&ID Copilot <span class="sub">— continuous compliance, on the box</span></div>
+    <div id="scorebar" class="scorebar">checks: <b id="passing">—</b>/<span id="checks">—</span> passing · <span id="issues" class="issues">0</span> issues · rev <span id="rev">—</span></div>
+  </header>
+  <main>
+    <section id="cy"></section>
+    <aside id="panel">
+      <div class="controls">
+        <div class="group-label">Simulate a saved revision</div>
+        <button data-rev="delete_psv_101">Delete PSV-101</button>
+        <button data-rev="strip_fail_position">Strip FV-101 fail position</button>
+        <button data-rev="duplicate_tag">Duplicate a tag</button>
+        <button data-rev="delete_level_instrument">Delete level instrument</button>
+      </div>
+      <div class="group-label">Findings</div>
+      <ul id="findings"></ul>
+      <div class="group-label">Alert feed (local — nothing leaves the box)</div>
+      <ul id="alerts"></ul>
+    </aside>
+  </main>
+  <script src="/app/pane.js"></script>
+</body>
+</html>
