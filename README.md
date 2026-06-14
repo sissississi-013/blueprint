@@ -1,8 +1,8 @@
 # blueprint
 
-**An always-on, fully local copilot that live red-lines Piping & Instrumentation Diagrams (P&IDs) as engineers edit them.**
+**An always-on, fully local copilot that sits on top of engineers' existing tools and live red-lines Piping & Instrumentation Diagrams (P&IDs) as new revisions are saved.**
 
-`blueprint` is the **P&ID Copilot**: it watches a live engineering diagram and, the instant an edit introduces a safety or compliance violation, red-lines it directly on the drawing — pulsing the offending node red, drawing a *ghost edge* for the relief path that should exist, and pinging Telegram — all without a submit. "Grammarly's underlines, but for the engineering safety diagrams that refineries, chemical plants, and offshore platforms are built from." Catch the missing relief valve *as it's deleted*, not six weeks later in HAZOP. Everything runs on-device on the **Dell Pro Max with GB10**; no engineering drawings ever leave the box.
+`blueprint` is the **P&ID Copilot**: an *overlay* on the tools engineers already use (AutoCAD Plant 3D / SmartPlant / AVEVA). It reads every revision they save and, the instant one introduces a safety or compliance violation, red-lines it on a review pane — pulsing the offending node red, drawing a *ghost edge* for the relief path that should exist, and pinging Telegram — all without a submit and **without changing anything about their workflow**. "Grammarly's underlines, but for the engineering safety diagrams that refineries, chemical plants, and offshore platforms are built from." An `ingest()` contract swallows their real artifacts (native DEXPI / `.graphml` today; PDF and scanned image via a Nemotron vision adapter). Everything runs on-device on the **Dell Pro Max with GB10**; no engineering drawings ever leave the box.
 
 > Built for the **Dell × NVIDIA Hackathon — "Local AI on Dell Pro Max with GB10"** (San Francisco, June 14, 2026).
 
@@ -20,19 +20,20 @@ ROI framing: *"Finding a numbering error at issued-for-construction costs hours;
 
 ## Architecture
 
-**Everything is a graph.** A live diagram canvas emits change events; a **deterministic** rule engine finds violations; a local LLM only *explains* them. We deliberately do **not** ask a vision model to "read the whole diagram" — the LLM never decides whether something is a violation, so it can't hallucinate a safety pass.
+**Everything is a graph; invisibility governs the boundary.** Engineers keep working in their own tools and saving revisions as they always have. An `ingest()` adapter turns each saved artifact into a graph; a **deterministic** rule engine finds violations; a local LLM only *explains* them. The LLM never decides whether something is a violation, so it can't hallucinate a safety pass.
 
 ```
-[ Cytoscape.js canvas on the GB10 ]  ──graph-changed──▶  [ diff(G, G') ]  ──▶  [ rule engine ]  ──annotations──▶  back to canvas (red node / ghost edge / callout)
-   (renders graph, scripted edits)                          (affected nbhd)    (NetworkX + VF2 + tag-grammar      └─▶ Nemotron narrates "why" + Q&A (never authors findings)
-                                                                                + reachability → punch-list JSON)  └─▶ NemoClaw → Telegram delta alert
+their tool (AutoCAD/SmartPlant/AVEVA) ──saves revision──▶ ingest(artifact) ──▶ [ diff(G, G') ] ──▶ [ rule engine ] ──annotations──▶ review pane (red node / ghost edge / callout)
+   (UNCHANGED workflow)        (DEXPI/.graphml now;          (NetworkX graph)    (affected nbhd)    (VF2 + tag-grammar      ├─▶ Nemotron narrates "why" + Q&A (never authors findings)
+                               PDF/image via Nano-12B-VL)                                            + reachability)        └─▶ NemoClaw → Telegram delta alert
 ```
 
+- **Invisibility principle:** an overlay, not a replacement. `ingest()` = one interface, three adapters (native DEXPI / `.graphml` now → PDF → scanned-image vision adapter). Vision at the boundary is the *proof* of "nothing changed," not an afterthought.
 - **Deterministic core:** rule engine (NetworkX + VF2 subgraph isomorphism + ISA-5.1 tag grammar + relief-path reachability) produces every finding; Nemotron only narrates.
-- **Always-on loop:** incremental re-validation of the changed neighborhood on each edit; revision-diff state detects regressions ("PSV-101 was present last revision and is now gone").
+- **Always-on loop:** incremental re-validation of the changed neighborhood on each saved revision; revision-diff state detects regressions ("PSV-101 was present last revision and is now gone").
 - **Orchestration:** OpenClaw (agent + tools + loop) on the NVIDIA NemoClaw reference stack.
 - **Sandbox:** OpenShell (Landlock/seccomp/netns, default-deny egress) — the agent *cannot* exfiltrate plant IP.
-- **Models:** NVIDIA Nemotron 3 Nano-30B (interactive workhorse, local via Ollama); Nano-12B VL only for the optional "drop a screenshot" stretch.
+- **Models:** NVIDIA Nemotron 3 Nano-30B (interactive reasoning/narration, local via Ollama); Nano-12B VL for the vision ingest adapter.
 - **Runtime:** 100% local on the GB10 — zero cloud tokens.
 
 ## Repository layout
@@ -61,12 +62,13 @@ blueprint/
 |---|---|
 | Docs / spec (`docs/`) | ✅ Done |
 | NemoClaw + Nemotron (Nano-30B) on GB10 | ⬜ Not started |
-| Graph load (PID2Graph `.graphml` / pyDEXPI) + normalize | ⬜ Not started |
-| Cytoscape.js canvas + scripted edit buttons | ⬜ Not started |
+| `ingest()` graph adapters (DEXPI / `.graphml`) + normalize | ⬜ Not started |
+| Review pane (Cytoscape.js) + scripted "new revision" buttons | ⬜ Not started |
 | Deterministic rule engine (checks 1–6, VF2 patterns) + ghost-edges | ⬜ Not started |
-| Continuous loop (graph-diff, incremental re-validate, revision state) | ⬜ Not started |
+| Continuous loop (revision-diff, incremental re-validate, revision state) | ⬜ Not started |
 | OpenClaw tools + Nemotron narration / Q&A | ⬜ Not started |
 | NemoClaw Telegram delta alerts | ⬜ Not started |
+| `ingest()` vision adapter (PDF / image → graph) — invisibility proof | ⬜ Not started |
 
 See [`docs/demo-spec.md`](docs/demo-spec.md) for the governing plan, 5-min demo script, and hour-by-hour build plan.
 
