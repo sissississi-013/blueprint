@@ -1,6 +1,8 @@
 # P&ID Reviewer — Full Spec & Build-Plan for the Dell × NVIDIA GB10 Hackathon
 
-> **Working build spec (source of truth for implementation).** Refines [`project.md`](./project.md): the decision is now firmly **graph-first, not vision-first**. See [`hackathon-context.md`](./hackathon-context.md) for rules/rubric and [`sponsor-tech-and-advantages.md`](./sponsor-tech-and-advantages.md) for the stack.
+> **Deep implementation reference** (datasets, rule set, model IDs/serving). Refines [`project.md`](./project.md): the decision is firmly **graph-first, not vision-first**.
+>
+> **⚠️ Product shape is now governed by [`demo-spec.md`](./demo-spec.md)** — the "P&ID Copilot" continuous live-red-lining reframe. The "submit a file → punch-list" flow below is superseded by the continuous validation loop; the datasets, rule set, and Nemotron serving details here remain fully valid. See [`hackathon-context.md`](./hackathon-context.md) for rules/rubric and [`sponsor-tech-and-advantages.md`](./sponsor-tech-and-advantages.md) for the stack.
 
 ## TL;DR
 - **Build it graph-first, not vision-first.** Skip detector training entirely: load PID2Graph `.graphml` ground-truth graphs (and/or pyDEXPI-parsed DEXPI P&IDs) into NetworkX, run a deterministic rule engine for the validation punch-list, and use a local NVIDIA Nemotron model as the "reviewer agent" that narrates findings and answers Q&A over Telegram/Slack via NemoClaw + OpenShell on the GB10.
