@@ -33,6 +33,7 @@ The 6 rules all need **rich per-node attributes**: instrument tag strings (`PT-1
 | **DEXPI** (pyDEXPI) | Proteus `.xml` → rich object model → NetworkX | **Yes** (full smart-P&ID) | **Yes** (Pump, Vessel, PSV, ControlValve, nozzles…) | **The rule-bearing working diagram + the known-bad demo case.** This is where rules actually fire. |
 | **PID2Graph** | `.graphml` | No (no tag text) | **No** — only 7 coarse classes (General, Pump/Compressor, Tank/Vessel, Instrumentation, Valve, Arrow, Inlet/Outlet) + 2 line classes | **Visual realism** ("here's a real OPEN100 sheet") and graph-diff/ingest plumbing tests. Rules degrade to topology-only on it. |
 | **Synthetic (pyDEXPI generator)** | generated DEXPI | Yes | Yes | Fabricating clean + deliberately-broken demo P&IDs with full control. |
+| **draw.io** (live demo input surface) | `.drawio` = mxGraph XML | **Yes** (via shape `tag` label) | **Yes** (via shape `type` data attr in our custom stencil) | **The live edit→save→review demo beat.** Deterministic XML parse, NOT vision. Presenter edits here on stage. |
 
 **Consequence for the build:**
 - The **canonical internal graph schema** (§4.1) is the single representation everything else targets. The DEXPI adapter populates it fully; the graphml adapter populates what it can (topology + coarse class) and leaves rule-required attrs `None`.
@@ -64,7 +65,8 @@ blueprint/
 │   ├── ingest/
 │   │   ├── base.py                # IngestAdapter protocol; ingest(artifact) dispatcher
 │   │   ├── graphml_adapter.py     # PID2Graph .graphml  (nx.read_graphml)
-│   │   ├── dexpi_adapter.py       # DEXPI .xml via pyDEXPI  (PRIMARY)
+│   │   ├── dexpi_adapter.py       # DEXPI .xml via pyDEXPI  (PRIMARY rule-bearing)
+│   │   ├── drawio_adapter.py      # .drawio mxGraph XML -> graph (LIVE DEMO surface, deterministic)
 │   │   └── vision_adapter.py      # PDF/image -> graph via Nano-12B-VL (STRETCH)
 │   ├── rules/
 │   │   ├── engine.py              # RuleEngine.run(graph, scope) -> [Finding]; incremental
@@ -96,6 +98,10 @@ blueprint/
 ├── deploy/
 │   ├── openshell-policy.yaml      # default-deny egress; allow localhost:{8000,11434} + Telegram
 │   └── nemoclaw-onboard.md        # exact onboard steps/answers
+├── drawio/
+│   ├── pid-stencil.xml            # custom draw.io library: shapes carry type+tag data attrs
+│   ├── demo.drawio                # the clean demo P&ID (uncompressed XML) the presenter edits
+│   └── README.md                  # how to load the stencil + save-uncompressed setting
 ├── fixtures/                      # frozen demo graphs (clean + broken), the one demo PDF
 ├── tests/                         # rule unit tests on tiny hand-built graphs
 ├── requirements.txt
@@ -278,7 +284,23 @@ def load_dexpi(path) -> PidGraph:
 ```
 Targets pyDEXPI's `C01V04-VER.EX01.xml` reference and synthetic outputs. **Verify pyDEXPI's exact API names on-site** (parser entrypoint + networkx export) — they're the one external API we depend on.
 
-### 6.3 `vision_adapter.py` (STRETCH — invisibility proof)
+### 6.3 `drawio_adapter.py` (LIVE DEMO surface — deterministic, NOT vision)
+```python
+def load_drawio(path) -> PidGraph:
+    # .drawio = mxGraph XML. Parse <mxCell> elements:
+    #   vertices (vertex="1")  -> Node; edges (edge="1", source/target) -> Edge
+    #   read type+tag from shape DATA: drawio stores custom data as a wrapping
+    #     <object label=.. type=.. tag=..><mxCell .../></object>  (our stencil sets these)
+    #   fall back to deriving type from the label/tag via ISA-5.1 grammar (R6) if data absent
+    # source_fidelity="rich" (our stencil guarantees type+tag)
+```
+**Critical setup (in `drawio/README.md`):**
+- **Save uncompressed:** draw.io compresses `<diagram>` (base64+deflate) by default. Disable via *Extras → Settings → uncheck "Compressed"* (or use the desktop `--disable-compression`) so the adapter reads plain XML. Otherwise decode deflate in the adapter.
+- **Custom stencil** (`pid-stencil.xml`): one shape each for PSV, Vessel, Pump, Control Valve, Block Valve, Check Valve, Strainer, Flare, Instrument — each pre-seeded with `type` data and a `tag` placeholder. Presenter drags, sets the tag label, connects. This makes the parse deterministic and the drawing trivial.
+- **Integration:** draw.io desktop/offline saves the `.drawio` file into the agent's watched folder (`/sandbox/revisions/`); Ctrl+S = "engineer saved a revision." Same file-watch path as every other adapter.
+- **Local-first:** serve draw.io offline on the box (static webapp or desktop AppImage). **Verify ARM/offline on-site (§16).** If it won't run offline on the box, run it in the box's browser from a locally-served copy; do not use the public cloud page (breaks the no-egress story).
+
+### 6.4 `vision_adapter.py` (STRETCH — invisibility proof)
 ```python
 def load_vision(path) -> PidGraph:
     # 1) if PDF has embedded text/vector -> extract symbols+text deterministically first
@@ -386,9 +408,10 @@ Day-of internet is slow; arrive with everything. **Order by importance** (if the
 2. **PID2Graph.zip** (9.3 GB, Zenodo 14803338) + **pyDEXPI repo** (incl. `C01V04-VER.EX01.xml`).
 3. **NemoClaw** install script + repo + **a tested `nemoclaw onboard` config** + **Telegram bot token** (created in advance).
 4. **This repo** (`blueprint`) with `requirements.txt` and **Cytoscape.js vendored** (`web/vendor/`), plus a Python wheel cache (`pip download -r requirements.txt -d wheels/`).
-5. **One real P&ID PDF** for the vision beat + its **frozen fallback graph** in `fixtures/`.
-6. **Nano-12B-VL GGUF** (only if room) for the vision adapter.
-7. Pre-built **fixtures**: clean DEXPI graph + the 3 broken revisions, generated and committed before the event.
+5. **draw.io offline** (desktop AppImage for linux-arm64, *and* a locally-servable static webapp copy as backup) + our **`pid-stencil.xml`** custom library + **`demo.drawio`** (saved uncompressed). Pre-test loading the stencil and the save→watched-folder path.
+6. **One real P&ID PDF** for the vision beat + its **frozen fallback graph** in `fixtures/`.
+7. **Nano-12B-VL GGUF** (only if room) for the vision adapter.
+8. Pre-built **fixtures**: clean DEXPI graph + the 3 broken revisions, generated and committed before the event.
 
 Also pre-write `run.sh` and rehearse `nemoclaw.sh → onboard → Ollama provider` once on any Linux/ARM box if possible. **Do not plan to download the 120B on-site.**
 
@@ -401,8 +424,8 @@ Also pre-write `run.sh` and rehearse `nemoclaw.sh → onboard → Ollama provide
 | Block | [A] agent/stack | [E] engine/Python | [U] UI/pane | Exit criteria (gate) |
 |---|---|---|---|---|
 | **H0–1** | NemoClaw onboard, Ollama+Nano-30B, OpenShell policy, Telegram "hello" round-trip | `requirements` install from wheels; FastAPI skeleton + `/health` + WebSocket echo | Static pane loads, Cytoscape renders a hardcoded 3-node graph over WS | Telegram↔Nemotron works **and** pane shows a graph from the server |
-| **H1–2.5** | OpenClaw skill stubs (HTTP wrappers) hitting `/health`,`/validate` | **`schema.py` + `dexpi_adapter` + `graphml_adapter`**; load C01 → canonical `PidGraph`; `diff.py` | Pane renders the real loaded graph; layout/labels readable | A real DEXPI graph renders in the pane end-to-end |
-| **H2.5–5** | wire `validate`/`explain` skills; trigger that watches `/sandbox/revisions/` | **Rule engine + R1,R2,R3,R6** (R1 ghost edge!); `make_broken.py` revisions | annotation applier: red/amber classes, ghost-edge style, duplicate badge, "N passing" overlay | Click "Delete PSV-101" → V-101 red + ghost edge in the pane |
+| **H1–2.5** | OpenClaw skill stubs (HTTP wrappers) hitting `/health`,`/validate`; draw.io offline + stencil load verified | **`schema.py` + `dexpi_adapter` + `graphml_adapter` + `drawio_adapter`**; load C01 → canonical `PidGraph`; `diff.py` | Pane renders the real loaded graph; layout/labels readable | A real DEXPI graph **and** a `.drawio` save both render in the pane |
+| **H2.5–5** | wire `validate`/`explain` skills; trigger that watches `/sandbox/revisions/` (catches draw.io saves + scripted drops) | **Rule engine + R1,R2,R3,R6** (R1 ghost edge!); `make_broken.py` revisions | annotation applier: red/amber classes, ghost-edge style, duplicate badge, "N passing" overlay | Edit in draw.io + Ctrl+S → V-101 red + ghost edge in the pane (and the scripted-button path also works) |
 | **H5–6** | Nemotron narration (`/explain`) + Q&A (`/ask`) via NemoClaw; Telegram delta alert on RED | **R4 + R5** (VF2 patterns) | "why?" click → callout; Q&A glow; subgraph-match highlight | All 6 rules fire on broken graph; Telegram pings on the break |
 | **H6–7** | full continuous loop through OpenClaw (trigger→ingest→validate→alert); regression detection | incremental `scope` validation + revision state | polish red/amber/green, animations | The whole loop runs unprompted from a dropped revision file |
 | **H7–8.5** | — | harden; unit tests on tiny graphs; freeze `fixtures/` | ghost-edge animation, subgraph highlight beat, green overlay count | Demo runs clean on frozen fixtures, no manual prodding |
@@ -422,11 +445,12 @@ Also pre-write `run.sh` and rehearse `nemoclaw.sh → onboard → Ollama provide
 ## 14. Fallback ladder (degrade gracefully, never go dark)
 
 1. **Vision adapter flaky** → use the frozen fallback graph for the PDF beat; lean on DEXPI. (Doesn't touch the core.)
-2. **OpenClaw trigger/file-watch flaky** → pane button calls `POST /revision` directly; trigger still demoed once if possible. Loop still visibly autonomous (no per-finding prompting).
-3. **Telegram bridge down** → show alerts in the pane's alert feed; keep debugging NemoClaw (it's load-bearing) but don't block the demo.
-4. **Cytoscape pane slips** → server renders annotated graph to PNG (NetworkX/Graphviz) and posts per revision (still invisible, less wow).
-5. **Nemotron narration slow/unstable** → red-lines are deterministic and instant regardless; show canned-but-real explanations from the `Finding.message`/`standard_ref` (rule engine already produced them) and skip live LLM narration.
-6. **NemoClaw fully broken** (last resort, not in scored demo) → bare `python-telegram-bot`; keep OpenShell as the security story. Avoid unless forced.
+2. **draw.io live edit flaky** (offline/ARM/compression) → fall back to the **scripted "saved revision" buttons** in the pane, which drop the *same* pre-made `.drawio`/DEXPI files into the watched folder. Identical downstream; you lose only the live-drawing flourish. Keep these buttons wired and one keypress away at all times.
+3. **OpenClaw trigger/file-watch flaky** → pane button calls `POST /revision` directly; trigger still demoed once if possible. Loop still visibly autonomous (no per-finding prompting).
+4. **Telegram bridge down** → show alerts in the pane's alert feed; keep debugging NemoClaw (it's load-bearing) but don't block the demo.
+5. **Cytoscape pane slips** → server renders annotated graph to PNG (NetworkX/Graphviz) and posts per revision (still invisible, less wow).
+6. **Nemotron narration slow/unstable** → red-lines are deterministic and instant regardless; show canned-but-real explanations from the `Finding.message`/`standard_ref` (rule engine already produced them) and skip live LLM narration.
+7. **NemoClaw fully broken** (last resort, not in scored demo) → bare `python-telegram-bot`; keep OpenShell as the security story. Avoid unless forced.
 
 Rule: **the deterministic rule engine + pane red-line is the floor** — if only that works, you still have a real, on-box, visual safety catch.
 
@@ -438,11 +462,11 @@ Rule: **the deterministic rule engine + pane red-line is the floor** — if only
 - [ ] Nano-30B served locally via NemoClaw; Telegram round-trip works.
 - [ ] DEXPI/`.graphml` ingest → canonical graph → pane render.
 - [ ] Rules R1, R2, R3, R6 firing; **R1 ghost edge** visible.
-- [ ] Scripted "Delete PSV-101" revision → instant red-line + Telegram ping.
+- [ ] Scripted "Delete PSV-101" revision (button → watched folder) → instant red-line + Telegram ping.
 - [ ] Click-to-explain narration from Nemotron.
 - [ ] 5-min script rehearsed on frozen fixtures.
 
-**Target (the winning demo):** + R4, R5 · Q&A glow · subgraph-match highlight · revision-regression message · full OpenClaw continuous loop.
+**Target (the winning demo):** + **live draw.io edit → Ctrl+S → red-line** (the real edit→save beat) · R4, R5 · Q&A glow · subgraph-match highlight · revision-regression message · full OpenClaw continuous loop.
 
 **Stretch (only if green by H8.5):** vision PDF/image ingest · OpenShell egress-block TUI beat · OPEN100 graphml realism sheet · SIS/BPCS + PSV-isolation rules.
 
@@ -455,3 +479,4 @@ Rule: **the deterministic rule engine + pane red-line is the floor** — if only
 3. **Nano-30B tokens/sec on the actual GB10** for narration — confirm it's comfortably interactive; if not, shorten narration prompts / make fully async.
 4. **Whether OPEN100 `.graphml` carries any usable tag/text** in the version you downloaded (if it does, R-rules degrade less on it). Assume not; treat as topology-only.
 5. **OpenShell + browser localhost reachability** — confirm the pane (host browser) can hit the sandboxed service on the allowed localhost port.
+6. **draw.io offline on ARM** — confirm the desktop AppImage (or locally-served static webapp) runs on DGX OS ARM with no network; confirm **save-uncompressed** is set and the `.drawio` lands in the watched folder; confirm the custom stencil loads and its `type`/`tag` data survive the round-trip. If any of this is shaky, default to the scripted-button fallback for the demo and treat live draw.io as a bonus.

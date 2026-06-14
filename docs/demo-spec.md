@@ -85,6 +85,19 @@ Everything downstream of `ingest()` is identical and graph-only. Adapters are ad
 
 **Overlay, not replacement:** the engineer never opens our app to *work* — they keep authoring in their tool and saving revisions as they always have. Our review pane *watches* the revisions they emit (via the `ingest()` adapters) and red-lines each one. This is the honest embodiment of the invisibility principle.
 
+### Demo surface & presenter persona (important — read before rehearsing)
+The presenter is **not** a process engineer and does not operate real CAD. Two facts make that a non-issue:
+- **Real CAD can't run on the box anyway.** AutoCAD Plant 3D / SmartPlant / AVEVA are Windows x86; the GB10 runs DGX OS (Ubuntu ARM) and the demo must run on the box. "Operate real CAD on stage" was never possible.
+- **The integration boundary is a watched export folder, not the CAD UI.** A real overlay watches the folder a tool exports revisions to (DEXPI/PDF). Demonstrating *that boundary* is the honest demo.
+
+**Presenter persona = the safety/compliance reviewer** (the actual buyer), not the drafting engineer. *"Engineers keep drafting in their own tools and export revisions like always. I'm the reviewer — I never touch their CAD. My agent watches every exported revision and pings me the instant one breaks a safety rule."*
+
+**Input surface = draw.io (diagrams.net), served offline on the box**, standing in for the authoring tool:
+- Use a **custom P&ID stencil** (prepared pre-event) whose shapes carry `type` + `tag` in shape *data* (Edit Data) → the draw.io adapter reads types deterministically. Drawing is drag-label-connect; no engineering expertise needed.
+- **Save (Ctrl+S) → the `.drawio` file lands in the agent's watched folder → the loop fires.** Same mechanism we'd use to watch a real tool's export.
+- The `.drawio` file is **mxGraph XML** → parsed by a **deterministic** `drawio` adapter (see build plan §6.3), *not* the vision path. Configure draw.io to save **uncompressed** XML.
+- **Honesty:** draw.io *stands in for* the authoring tool; in production the same file-watch hooks AutoCAD/SmartPlant DEXPI/PDF export. Say this plainly — judges reward it.
+
 **Division of labor that keeps it credible:** the **rule engine is deterministic** and produces the findings; **Nemotron only explains and answers questions.** The LLM never decides whether something is a violation — so it can't hallucinate a safety pass. This is your "doesn't break / technically sound" answer and it mirrors how the industry actually trusts these tools (human-in-the-loop).
 
 ---
@@ -101,15 +114,16 @@ Incremental re-validation (not full re-scan) is both the autonomy story and a ge
 ---
 
 ## WOW demo script (5 minutes)
-1. **(0:15) The review pane.** A real OPEN100 P&ID renders in the side panel on the GB10's monitor. *"Engineers keep working in AutoCAD / SmartPlant exactly as they do today. Our agent just watches the revisions they save — running entirely on this Dell box, no cloud, fully sandboxed. Nothing about their workflow changes."*
+Two windows side-by-side on the GB10 monitor: **draw.io** (the "authoring tool") and the **review pane** (our agent). Presenter speaks as the safety reviewer.
+1. **(0:15) Set the frame.** A real P&ID is open in draw.io; the review pane shows the same diagram as a clean graph. *"Engineers draft in their own tools — here, draw.io stands in for AutoCAD / SmartPlant. They save revisions like always. My agent watches every saved revision — running entirely on this Dell box, no cloud, fully sandboxed. Nothing about their workflow changes."*
 2. **(0:45) Show it's clean + ask it something.** Green overlay: "47 checks passing." Type *"which vessels have relief protection?"* -> those vessels glow green on the graph. (Proves local Nemotron + graph Q&A.)
-3. **(1:30) THE BREAK — a new revision lands.** Click **Delete PSV-101** — *framed as "an engineer just saved a new revision in AutoCAD"*, not an edit in our app. Instantly, no submit: V-101 pulses **red**, a **dashed ghost edge** appears showing the relief path that *should* exist, callout: *"V-101 unprotected — no relief path to flare (API 521)."* Telegram pings at the same moment. (Proves: always-on, continuous, visual reasoning, NemoClaw messaging, the safety catch.)
-4. **(2:30) Next revision.** Duplicate a tag -> both nodes flash and link with a "duplicate" badge. Strip a control valve's fail position -> it turns amber. The agent keeps up with each saved revision, no prompting. (Proves continuous autonomy, not one-shot.)
+3. **(1:30) THE BREAK — a real edit, a real save.** In draw.io, **delete the PSV-101 shape and hit Ctrl+S.** The save lands in the watched folder; the agent reacts with no further action: V-101 pulses **red**, a **dashed ghost edge** appears showing the relief path that *should* exist, callout: *"V-101 unprotected — no relief path to flare (API 521)."* Telegram pings at the same moment. (Proves: always-on, continuous, real edit→save→review, visual reasoning, NemoClaw messaging, the safety catch.)
+4. **(2:30) Next revision.** In draw.io, relabel a node to a duplicate tag and save -> both nodes flash + "duplicate" badge. Delete a control valve's fail-position data and save -> it turns amber. The agent keeps up with each save, no prompting. (Proves continuous autonomy, not one-shot.) *(Fallback: scripted "saved revision" buttons drop the same files — see build plan.)*
 5. **(3:30) Click a finding -> "why?"** Nemotron explains in plain language, cites the standard, and the pane **highlights the subgraph pattern it matched** (visual reasoning trace). (Proves depth + explainability.)
-6. **(4:00) Invisibility proof — feed it a real PDF/image.** Drop an actual P&ID PDF (or screenshot) the way an engineer would have it -> `ingest()` runs the vision adapter (Nano-12B-VL) -> same graph -> same review appears. *"We read what you already have. No export, no new format, no behavior change."* (Even if rough, this is the move that makes judges feel the zero-switch thesis.)
-7. **(4:30) Close on business.** *"Every revision validated the instant it's saved — before HAZOP, before construction, when fixes are cheapest. We sit on top of your existing tools and read whatever they emit. Fully on-prem, so the plant's IP never leaves the building. Sandboxed, so the agent can't exfiltrate it. That's continuous, invisible compliance."*
+6. **(4:00) Invisibility proof — feed it a real PDF/image.** Drop an actual P&ID PDF (or screenshot) the way an engineer would have it -> `ingest()` runs the vision adapter (Nano-12B-VL) -> same graph -> same review appears. *"And it's not just draw.io — drop the PDF you already have, no export, no new format."* (Even if rough, this is the move that makes judges feel the zero-switch thesis.)
+7. **(4:30) Close on business.** *"Every revision validated the instant it's saved — before HAZOP, before construction, when fixes are cheapest. We sit on top of your existing tools and read whatever they export. Fully on-prem, so the plant's IP never leaves the building. Sandboxed, so the agent can't exfiltrate it. That's continuous, invisible compliance."*
 
-**Wow levers to rehearse:** the *instant* red-line on a saved revision (no submit, no tool switch); the **ghost edge** drawing the missing thing (showing what *should* be there is more striking than just flagging what's wrong); the simultaneous Telegram ping; the live subgraph-match highlight; and the **PDF/image ingest** that proves "we read what you already make."
+**Wow levers to rehearse:** a **real edit in a real tool → Ctrl+S → instant red-line** (no submit, no switch to our app); the **ghost edge** drawing the missing thing (more striking than just flagging what's wrong); the simultaneous Telegram ping; the live subgraph-match highlight; and the **PDF/image ingest** that proves "we read what you already make." **Rehearse the draw.io edits to muscle memory; keep scripted-button fallbacks one keypress away.**
 
 ---
 

@@ -64,6 +64,7 @@ blueprint/
 | Docs / spec (`docs/`) | ✅ Done |
 | NemoClaw + Nemotron (Nano-30B) on GB10 | ⬜ Not started |
 | `ingest()` graph adapters (DEXPI / `.graphml`) + normalize | ⬜ Not started |
+| draw.io adapter (mxGraph XML) + custom P&ID stencil — live demo surface | ⬜ Not started |
 | Review pane (Cytoscape.js) + scripted "new revision" buttons | ⬜ Not started |
 | Deterministic rule engine (checks 1–6, VF2 patterns) + ghost-edges | ⬜ Not started |
 | Continuous loop (revision-diff, incremental re-validate, revision state) | ⬜ Not started |
